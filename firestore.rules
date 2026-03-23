@@ -12,7 +12,9 @@ service cloud.firestore {
     //   - email: string (required, email format)
     //   - displayName: string (required)
     //   - photoURL: string (required, url format)
-    //   - createdAt: number (required)
+    //   - createdAt: timestamp (required)
+    //   - lastLogin: timestamp (required)
+    //   - role: string (optional, enum: ["admin", "user"])
     //
     // Collection: passwordChecks
     // Document ID: {checkId}
@@ -45,6 +47,12 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "vigneshwaranm136@gmail.com" && request.auth.token.email_verified == true)); // Default admin
+    }
+
     function isValidEmail(email) {
       return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
     }
@@ -59,12 +67,14 @@ service cloud.firestore {
 
     // Domain Validators
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'photoURL', 'createdAt']) &&
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'photoURL', 'createdAt', 'lastLogin', 'role']) &&
              data.uid == request.auth.uid &&
              isValidEmail(data.email) &&
              data.displayName is string &&
              isValidUrl(data.photoURL) &&
-             data.createdAt is number;
+             data.createdAt is timestamp &&
+             data.lastLogin is timestamp &&
+             (!('role' in data) || data.role in ['admin', 'user']);
     }
 
     function isValidPasswordCheck(data) {
@@ -89,8 +99,8 @@ service cloud.firestore {
     // Rules
     match /users/{uid} {
       allow read: if isAuthenticated();
-      allow create: if isOwner(uid) && isValidUser(request.resource.data);
-      allow update: if isOwner(uid) && isValidUser(request.resource.data);
+      allow create: if isOwner(uid) && isValidUser(request.resource.data) && (!('role' in request.resource.data) || request.resource.data.role == 'user');
+      allow update: if isOwner(uid) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
     }
 
     match /passwordChecks/{checkId} {

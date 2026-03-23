@@ -2,9 +2,11 @@ import React from "react";
 import { Shield, Lock, Terminal, Activity, History as HistoryIcon, LogOut, User } from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, googleProvider } from "../firebase";
-import { signInWithPopup, signOut } from "firebase/auth";
+import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 import { motion, AnimatePresence } from "motion/react";
 import { generateBackgroundPrompt, generateImage } from "../services/geminiService";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../firebase";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,6 +16,26 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [user] = useAuthState(auth);
   const [bgImage, setBgImage] = React.useState<string>("https://picsum.photos/seed/cybersecurity/1920/1080");
   const [loadingBg, setLoadingBg] = React.useState(false);
+
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          await setDoc(doc(db, "users", user.uid), {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            createdAt: serverTimestamp(),
+            lastLogin: serverTimestamp(),
+          }, { merge: true });
+        } catch (error) {
+          console.error("Error updating user document:", error);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const updateBackground = async () => {
     setLoadingBg(true);
