@@ -33,9 +33,11 @@
         "email": { "type": "string" },
         "displayName": { "type": "string" },
         "photoURL": { "type": "string" },
-        "createdAt": { "type": "integer" }
+        "createdAt": { "type": "string", "description": "Firestore server timestamp" },
+        "lastLogin": { "type": "string", "description": "Firestore server timestamp" },
+        "role": { "type": "string", "enum": ["admin", "user"] }
       },
-      "required": ["uid", "email", "displayName", "photoURL", "createdAt"]
+      "required": ["uid", "email", "displayName", "photoURL", "createdAt", "lastLogin"]
     },
     "SecureMessage": {
       "title": "Secure Message",

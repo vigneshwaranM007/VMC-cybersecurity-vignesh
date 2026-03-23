@@ -40,7 +40,7 @@ service cloud.firestore {
 
     // Helper Functions
     function isAuthenticated() {
-      return request.auth != null;
+      return request.auth != null && request.auth.uid != null;
     }
 
     function isOwner(userId) {
@@ -48,9 +48,15 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          (request.auth.token.email == "vigneshwaranm136@gmail.com" && request.auth.token.email_verified == true)); // Default admin
+      return isAuthenticated() && (request.auth.token.email == "vigneshwaranm136@gmail.com" || request.auth.uid == "VVu7LEad7jh3FrQ2pSNGSP4w6j73");
+    }
+
+    function isDocOwner(data) {
+      return isAuthenticated() && data.userId == request.auth.uid;
+    }
+
+    function isSender(data) {
+      return isAuthenticated() && data.senderId == request.auth.uid;
     }
 
     function isValidEmail(email) {
@@ -104,15 +110,15 @@ service cloud.firestore {
     }
 
     match /passwordChecks/{checkId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() && isValidPasswordCheck(request.resource.data);
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     match /messages/{messageId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidMessage(request.resource.data);
-      allow delete: if isAuthenticated() && resource.data.senderId == request.auth.uid;
+      allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid || isAdmin());
     }
   }
 }

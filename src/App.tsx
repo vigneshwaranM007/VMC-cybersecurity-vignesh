@@ -6,13 +6,25 @@ import { motion } from "motion/react";
 import { GoogleGenAI } from "@google/genai";
 import ReactMarkdown from "react-markdown";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const getAi = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.warn("GEMINI_API_KEY is not set. AI features will be disabled.");
+    return null;
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 const App: React.FC = () => {
   const [insight, setInsight] = React.useState<string>("");
   const [loadingInsight, setLoadingInsight] = React.useState(false);
 
   const fetchInsight = async () => {
+    const ai = getAi();
+    if (!ai) {
+      setInsight("Security Tip: Use a password manager to generate and store complex, unique passwords for all your online accounts.");
+      return;
+    }
     setLoadingInsight(true);
     try {
       const response = await ai.models.generateContent({
@@ -20,9 +32,14 @@ const App: React.FC = () => {
         contents: "Give a brief, punchy cybersecurity tip about password security or encryption. Keep it under 100 words. Use markdown for formatting.",
       });
       setInsight(response.text || "Always use a unique password for every account and enable multi-factor authentication whenever possible.");
-    } catch (error) {
-      console.error(error);
-      setInsight("Security Tip: Use a password manager to generate and store complex, unique passwords for all your online accounts.");
+    } catch (error: any) {
+      if (error?.status === 429 || error?.message?.includes("quota") || error?.message?.includes("429")) {
+        console.warn("Gemini quota exceeded for security insight.");
+        setInsight("Security Tip: Always use a unique password for every account and enable multi-factor authentication whenever possible. (AI insights are temporarily unavailable due to high demand)");
+      } else {
+        console.error(error);
+        setInsight("Security Tip: Use a password manager to generate and store complex, unique passwords for all your online accounts.");
+      }
     } finally {
       setLoadingInsight(false);
     }
