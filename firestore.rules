@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required, email format)
+    //   - displayName: string (required)
+    //   - photoURL: string (required, url format)
+    //   - createdAt: number (required)
+    //
+    // Collection: passwordChecks
+    // Document ID: {checkId}
+    // Fields:
+    //   - userId: string (required)
+    //   - passwordHash: string (required)
+    //   - salt: string (required)
+    //   - strength: string (required, enum: ["Weak", "Medium", "Strong"])
+    //   - score: number (required)
+    //   - timestamp: number (required)
+    //   - metadata: map (required)
+    //
+    // Collection: messages
+    // Document ID: {messageId}
+    // Fields:
+    //   - senderId: string (required)
+    //   - senderName: string (required)
+    //   - senderPhoto: string (optional)
+    //   - content: string (required, max 500 chars)
+    //   - timestamp: number (required)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Domain Validators
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'photoURL', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             data.displayName is string &&
+             isValidUrl(data.photoURL) &&
+             data.createdAt is number;
+    }
+
+    function isValidPasswordCheck(data) {
+      return hasOnlyAllowedFields(['userId', 'passwordHash', 'salt', 'strength', 'score', 'timestamp', 'metadata']) &&
+             data.userId == request.auth.uid &&
+             data.passwordHash is string &&
+             data.salt is string &&
+             data.strength in ["Weak", "Medium", "Strong"] &&
+             data.score is number &&
+             data.timestamp is number &&
+             data.metadata is map;
+    }
+
+    function isValidMessage(data) {
+      return hasOnlyAllowedFields(['senderId', 'senderName', 'senderPhoto', 'content', 'timestamp']) &&
+             data.senderId == request.auth.uid &&
+             data.senderName is string &&
+             data.content is string && data.content.size() <= 500 &&
+             data.timestamp is number;
+    }
+
+    // Rules
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(uid) && isValidUser(request.resource.data);
+      allow update: if isOwner(uid) && isValidUser(request.resource.data);
+    }
+
+    match /passwordChecks/{checkId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidPasswordCheck(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidMessage(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.senderId == request.auth.uid;
+    }
+  }
+}

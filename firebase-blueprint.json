@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "PasswordCheck": {
+      "title": "Password Check",
+      "description": "A record of a password strength check and hash.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "passwordHash": { "type": "string" },
+        "salt": { "type": "string" },
+        "strength": { "type": "string", "enum": ["Weak", "Medium", "Strong"] },
+        "score": { "type": "integer" },
+        "timestamp": { "type": "integer" },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "length": { "type": "integer" },
+            "hasUpper": { "type": "boolean" },
+            "hasLower": { "type": "boolean" },
+            "hasNumber": { "type": "boolean" },
+            "hasSymbol": { "type": "boolean" }
+          }
+        }
+      },
+      "required": ["userId", "passwordHash", "salt", "strength", "score", "timestamp"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["uid", "email", "displayName", "photoURL", "createdAt"]
+    },
+    "SecureMessage": {
+      "title": "Secure Message",
+      "description": "A message sent in the secure communication channel.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderPhoto": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "integer" }
+      },
+      "required": ["senderId", "senderName", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/passwordChecks/{checkId}": {
+      "schema": "PasswordCheck",
+      "description": "History of password checks."
+    },
+    "/users/{uid}": {
+      "schema": "UserProfile",
+      "description": "User profile data."
+    },
+    "/messages/{messageId}": {
+      "schema": "SecureMessage",
+      "description": "Secure communication channel messages."
+    }
+  }
+}
